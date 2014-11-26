@@ -1,0 +1,7 @@
+name: dart_ctags
+version: 0.0.1
+dependencies:
+  analyzer: any
+  path: any
+  quiver: any
+  args: any
