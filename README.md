@@ -6,15 +6,15 @@
 cd ~/dev/dart-ctags
 pub global activate -s path .
 cd ~/dev/your-dart-project
-pub global run dart_ctags:tags.dart -o .git/tags
+pub global run dart_ctags:tags -o .git/tags
 ```
 
 ## Help
 
 ```
-pub global run dart_ctags:tags.dart -h
+pub global run dart_ctags:tags -h
 Usage:
-  pub global run dart_ctags:tags.dart [OPTIONS] [FILES...]
+  pub global run dart_ctags:tags [OPTIONS] [FILES...]
   pub run tags.dart [OPTIONS] [FILES...]
 
 -o, --output=<FILE>     Output file for tags (default: stdout)

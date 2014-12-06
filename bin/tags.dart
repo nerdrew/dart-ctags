@@ -75,16 +75,25 @@ class Ctags {
     }
 
     List<List<String>> lines = [];
-    parseDartFile(file.path).declarations.forEach((declaration) {
+    CompilationUnit unit = parseDartFile(file.path);
+    var lineInfo = unit.lineInfo;
+    unit.declarations.forEach((declaration) {
       if (declaration is FunctionDeclaration) {
-        lines.add([declaration.name, path.relative(file.path, from: root), '/^;"', 'f']);
+        lines.add(
+            [
+                declaration.name,
+                path.relative(file.path, from: root),
+                '/^;"',
+                'f',
+                options['line-numbers'] ? 'line:${lineInfo.getLocation(declaration.offset).lineNumber}' : '']);
       } else if (declaration is ClassDeclaration) {
         lines.add(
             [
                 declaration.name,
                 path.relative(file.path, from: root),
                 '/${klass.matchAsPrefix(declaration.toSource())[0]}/;"',
-                'c']);
+                'c',
+                options['line-numbers'] ? 'line:${lineInfo.getLocation(declaration.offset).lineNumber}' : '']);
         declaration.members.forEach((member) {
           if (member is ConstructorDeclaration) {
             lines.add(
@@ -93,7 +102,8 @@ class Ctags {
                     path.relative(file.path, from: root),
                     '/${constructor.matchAsPrefix(member.toSource())[0]}/;"',
                     'M',
-                    'class:${declaration.name}']);
+                    'class:${declaration.name}',
+                    options['line-numbers'] ? 'line:${lineInfo.getLocation(member.offset).lineNumber}' : '']);
           } else if (member is FieldDeclaration) {
             member.fields.variables.forEach((variable) {
               lines.add(
@@ -102,7 +112,8 @@ class Ctags {
                       path.relative(file.path, from: root),
                       '/${member.toSource()}/;"',
                       'i',
-                      'class:${declaration.name}']);
+                      'class:${declaration.name}',
+                      options['line-numbers'] ? 'line:${lineInfo.getLocation(member.offset).lineNumber}' : '']);
             });
           } else if (member is MethodDeclaration) {
             lines.add(
@@ -111,26 +122,39 @@ class Ctags {
                     path.relative(file.path, from: root),
                     '/${method.matchAsPrefix(member.toSource())[0]}/;"',
                     member.isStatic ? 'M' : 'm',
-                    'class:${declaration.name}']);
+                    'class:${declaration.name}',
+                    options['line-numbers'] ? 'line:${lineInfo.getLocation(member.offset).lineNumber}' : '']);
           }
         });
       }
     });
-    return lines.map((line) => line.join('\t'));;
+    return lines.map((line) => line.join('\t'));
   }
 }
 
 main([List<String> args]) {
   ArgParser parser = new ArgParser();
-  parser.addOption('output', abbr: 'o', help: 'Output file for tags (default: stdout)', valueHelp: 'FILE');
+  parser.addOption(
+      'output',
+      abbr: 'o',
+      help: 'Output file for tags (default: stdout)',
+      valueHelp: 'FILE');
   parser.addFlag('follow-links', help: 'Follow symbolic links (default: false)', negatable: false);
-  parser.addFlag('include-hidden', help: 'Include hidden directories (default: false)', negatable: false);
-  parser.addFlag('line-numbers', abbr: 'l', help: 'Add line numbers to extension fields (default: false)', negatable: false);
+  parser.addFlag(
+      'include-hidden',
+      help: 'Include hidden directories (default: false)',
+      negatable: false);
+  parser.addFlag(
+      'line-numbers',
+      abbr: 'l',
+      help: 'Add line numbers to extension fields (default: false)',
+      negatable: false);
   parser.addFlag('skip-sort', help: 'Skip sorting the output (default: false)', negatable: false);
   parser.addFlag('help', abbr: 'h', help: 'Show this help', negatable: false);
   ArgResults options = parser.parse(args);
   if (options['help']) {
-    print('Usage:\n\tpub global run dart_ctags:tags.dart [OPTIONS] [FILES...]\n\tpub run tags.dart [OPTIONS] [FILES...]\n');
+    print(
+        'Usage:\n\tpub global run dart_ctags:tags [OPTIONS] [FILES...]\n\tpub run tags [OPTIONS] [FILES...]\n');
     print(parser.getUsage());
     exit(0);
   }
