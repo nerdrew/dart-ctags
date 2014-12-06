@@ -76,7 +76,6 @@ class Ctags {
 
     List<List<String>> lines = [];
     CompilationUnit unit = parseDartFile(file.path);
-    var lineInfo = unit.lineInfo;
     unit.declarations.forEach((declaration) {
       if (declaration is FunctionDeclaration) {
         lines.add(
@@ -85,7 +84,7 @@ class Ctags {
                 path.relative(file.path, from: root),
                 '/^;"',
                 'f',
-                options['line-numbers'] ? 'line:${lineInfo.getLocation(declaration.offset).lineNumber}' : '']);
+                options['line-numbers'] ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}' : '']);
       } else if (declaration is ClassDeclaration) {
         lines.add(
             [
@@ -93,7 +92,7 @@ class Ctags {
                 path.relative(file.path, from: root),
                 '/${klass.matchAsPrefix(declaration.toSource())[0]}/;"',
                 'c',
-                options['line-numbers'] ? 'line:${lineInfo.getLocation(declaration.offset).lineNumber}' : '']);
+                options['line-numbers'] ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}' : '']);
         declaration.members.forEach((member) {
           if (member is ConstructorDeclaration) {
             lines.add(
@@ -103,7 +102,7 @@ class Ctags {
                     '/${constructor.matchAsPrefix(member.toSource())[0]}/;"',
                     'M',
                     'class:${declaration.name}',
-                    options['line-numbers'] ? 'line:${lineInfo.getLocation(member.offset).lineNumber}' : '']);
+                    options['line-numbers'] ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}' : '']);
           } else if (member is FieldDeclaration) {
             member.fields.variables.forEach((variable) {
               lines.add(
@@ -113,7 +112,7 @@ class Ctags {
                       '/${member.toSource()}/;"',
                       'i',
                       'class:${declaration.name}',
-                      options['line-numbers'] ? 'line:${lineInfo.getLocation(member.offset).lineNumber}' : '']);
+                      options['line-numbers'] ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}' : '']);
             });
           } else if (member is MethodDeclaration) {
             lines.add(
@@ -123,7 +122,7 @@ class Ctags {
                     '/${method.matchAsPrefix(member.toSource())[0]}/;"',
                     member.isStatic ? 'M' : 'm',
                     'class:${declaration.name}',
-                    options['line-numbers'] ? 'line:${lineInfo.getLocation(member.offset).lineNumber}' : '']);
+                    options['line-numbers'] ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}' : '']);
           }
         });
       }
