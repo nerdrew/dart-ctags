@@ -2,9 +2,19 @@
 
 ## Example
 
+### Install from repo
 ```
 cd ~/dev/dart-ctags
 pub global activate -s path .
+```
+
+### or Install from pub
+```
+pub global activate dart_ctags
+```
+
+### Use
+```
 cd ~/dev/your-dart-project
 pub global run dart_ctags:tags -o .git/tags
 ```
