@@ -7,9 +7,10 @@ import 'package:args/args.dart';
 class Ctags {
   ArgResults options;
 
-  RegExp klass = new RegExp(r'^.+?($|{)');
-  RegExp constructor = new RegExp(r'^.+?($|{|;)');
-  RegExp method = new RegExp(r'^.+?($|{|;|\=>)');
+  // /./ in dart/js does not match newlines, /[^]/ matches . + \n
+  RegExp klass = new RegExp(r'^[^]+?($|{)');
+  RegExp constructor = new RegExp(r'^[^]+?($|{|;)');
+  RegExp method = new RegExp(r'^[^]+?($|{|;|\=>)');
 
   Ctags(this.options);
 
