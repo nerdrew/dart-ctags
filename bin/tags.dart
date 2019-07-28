@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:analyzer/analyzer.dart';
+import 'package:analyzer/dart/ast/ast.dart';
+import 'package:analyzer/dart/analysis/features.dart';
+import 'package:analyzer/dart/analysis/utilities.dart' as an;
 import 'package:path/path.dart' as path;
 import 'package:args/args.dart';
 
@@ -34,106 +36,111 @@ class Ctags {
         file.forEach((Iterable<String> fileLines) => lines.addAll(fileLines));
       });
 
-      if (!options['skip-sort']) {
+      if (!(options['skip-sort'] as bool)) {
         lines.sort();
       }
       if (options['output'] != null) {
-        File(options['output']).writeAsString(lines.join('\n'));
+        File(options['output'] as String).writeAsString(lines.join('\n'));
       } else {
         print(lines.join('\n'));
       }
     });
   }
 
-  Future<Iterable<Iterable<String>>> addFileSystemEntity(name) {
+  Future<Iterable<Iterable<String>>> addFileSystemEntity(String name) {
     FileSystemEntityType type = FileSystemEntity.typeSync(name);
 
-    if (type == FileSystemEntityType.DIRECTORY) {
+    if (type == FileSystemEntityType.directory) {
       return Directory(name)
-          .list(recursive: true, followLinks: options['follow-links'])
+          .list(recursive: true, followLinks: options['follow-links'] as bool)
           .map((file) {
         if (file is File && path.extension(file.path) == '.dart') {
           return parseFile(file);
         } else {
-          return [];
+          return <String>[];
         }
       }).toList();
-    } else if (type == FileSystemEntityType.FILE) {
-      return Future.value([parseFile(new File(name))]);
-    } else if (type == FileSystemEntityType.LINK && options['follow-links']) {
+    } else if (type == FileSystemEntityType.file) {
+      return Future.value([parseFile(File(name))]);
+    } else if (type == FileSystemEntityType.link &&
+        options['follow-links'] as bool) {
       return addFileSystemEntity(Link(name).targetSync());
+    } else {
+      return Future.value([]);
     }
   }
 
   Iterable<String> parseFile(File file) {
-    if (!options['include-hidden'] &&
+    if (!(options['include-hidden'] as bool) &&
         path.split(file.path).any((name) => name[0] == '.' && name != '.')) {
       return [];
     }
 
     String root;
     if (options['output'] != null) {
-      root = path.relative(path.dirname(options['output']));
+      root = path.relative(path.dirname(options['output'] as String));
     } else {
       root = '.';
     }
 
     List<List<String>> lines = [];
-    CompilationUnit unit = parseDartFile(file.path);
+    var result = an.parseFile(
+        path: file.path, featureSet: FeatureSet.fromEnableFlags([]));
+    var unit = result.unit;
     unit.declarations.forEach((declaration) {
       if (declaration is FunctionDeclaration) {
         lines.add([
-          declaration.name,
+          declaration.name.name,
           path.relative(file.path, from: root),
           '/^;"',
           'f',
-          options['line-numbers']
+          options['line-numbers'] as bool
               ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}'
               : ''
         ]);
       } else if (declaration is ClassDeclaration) {
         lines.add([
-          declaration.name,
+          declaration.name.name,
           path.relative(file.path, from: root),
           '/${klass.matchAsPrefix(declaration.toSource())[0]}/;"',
           'c',
-          options['line-numbers']
+          options['line-numbers'] as bool
               ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}'
               : ''
         ]);
         declaration.members.forEach((member) {
           if (member is ConstructorDeclaration) {
             lines.add([
-              member.name == null ? declaration.name : member.name,
+              member.name == null ? declaration.name.name : member.name.name,
               path.relative(file.path, from: root),
               '/${constructor.matchAsPrefix(member.toSource())[0]}/;"',
               'M',
               'class:${declaration.name}',
-              options['line-numbers']
+              options['line-numbers'] as bool
                   ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}'
                   : ''
             ]);
           } else if (member is FieldDeclaration) {
             member.fields.variables.forEach((variable) {
               lines.add([
-                variable.name,
+                variable.name.name,
                 path.relative(file.path, from: root),
                 '/${member.toSource()}/;"',
                 'i',
                 'class:${declaration.name}',
-                options['line-numbers']
+                options['line-numbers'] as bool
                     ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}'
                     : ''
               ]);
             });
           } else if (member is MethodDeclaration) {
             lines.add([
-              member.name,
+              member.name.name,
               path.relative(file.path, from: root),
               '/${method.matchAsPrefix(member.toSource())[0]}/;"',
               member.isStatic ? 'M' : 'm',
               'class:${declaration.name}',
-              options['line-numbers']
+              options['line-numbers'] as bool
                   ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}'
                   : ''
             ]);
@@ -163,10 +170,10 @@ main([List<String> args]) {
       help: 'Skip sorting the output (default: false)', negatable: false);
   parser.addFlag('help', abbr: 'h', help: 'Show this help', negatable: false);
   ArgResults options = parser.parse(args);
-  if (options['help']) {
+  if (options['help'] as bool) {
     print(
         'Usage:\n\tpub global run dart_ctags:tags [OPTIONS] [FILES...]\n\tpub run tags [OPTIONS] [FILES...]\n');
-    print(parser.getUsage());
+    print(parser.usage);
     exit(0);
   }
   Ctags(options).generate();
