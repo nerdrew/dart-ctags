@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
-import 'package:analyzer/analyzer.dart';
+import 'package:analyzer/dart/ast/ast.dart';
+import 'package:analyzer/dart/analysis/features.dart';
+import 'package:analyzer/dart/analysis/utilities.dart' as an;
 import 'package:path/path.dart' as path;
 import 'package:args/args.dart';
 
@@ -8,9 +10,9 @@ class Ctags {
   ArgResults options;
 
   // /./ in dart/js does not match newlines, /[^]/ matches . + \n
-  RegExp klass = new RegExp(r'^[^]+?($|{)');
-  RegExp constructor = new RegExp(r'^[^]+?($|{|;)');
-  RegExp method = new RegExp(r'^[^]+?($|{|;|\=>)');
+  RegExp klass = RegExp(r'^[^]+?($|{)');
+  RegExp constructor = RegExp(r'^[^]+?($|{|;)');
+  RegExp method = RegExp(r'^[^]+?($|{|;|\=>)');
 
   Ctags(this.options);
 
@@ -24,106 +26,124 @@ class Ctags {
     }
 
     List<String> lines = [
-        '!_TAG_FILE_FORMAT\t2\t/extended format; --format=1 will not append ;" to lines/',
-        '!_TAG_FILE_SORTED\t1\t/0=unsorted, 1=sorted, 2=foldcase/'];
+      '!_TAG_FILE_FORMAT\t2\t/extended format; --format=1 will not append ;" to lines/',
+      '!_TAG_FILE_SORTED\t1\t/0=unsorted, 1=sorted, 2=foldcase/'
+    ];
 
-    Future.wait(dirs.map(addFileSystemEntity)).then((Iterable<Iterable<Iterable<String>>> files) {
+    Future.wait(dirs.map(addFileSystemEntity))
+        .then((Iterable<Iterable<Iterable<String>>> files) {
       files.forEach((Iterable<Iterable<String>> file) {
         file.forEach((Iterable<String> fileLines) => lines.addAll(fileLines));
       });
 
-      if (!options['skip-sort']) {
+      if (!(options['skip-sort'] as bool)) {
         lines.sort();
       }
       if (options['output'] != null) {
-        new File(options['output']).writeAsString(lines.join('\n'));
+        File(options['output'] as String).writeAsString(lines.join('\n'));
       } else {
         print(lines.join('\n'));
       }
     });
   }
 
-  Future<Iterable<Iterable<String>>> addFileSystemEntity(name) {
+  Future<Iterable<Iterable<String>>> addFileSystemEntity(String name) {
     FileSystemEntityType type = FileSystemEntity.typeSync(name);
 
-    if (type == FileSystemEntityType.DIRECTORY) {
-      return new Directory(
-          name).list(recursive: true, followLinks: options['follow-links']).map((file) {
+    if (type == FileSystemEntityType.directory) {
+      return Directory(name)
+          .list(recursive: true, followLinks: options['follow-links'] as bool)
+          .map((file) {
         if (file is File && path.extension(file.path) == '.dart') {
           return parseFile(file);
         } else {
-          return [];
+          return <String>[];
         }
       }).toList();
-    } else if (type == FileSystemEntityType.FILE) {
-      return new Future.value([parseFile(new File(name))]);
-    } else if (type == FileSystemEntityType.LINK && options['follow-links']) {
-      return addFileSystemEntity(new Link(name).targetSync());
+    } else if (type == FileSystemEntityType.file) {
+      return Future.value([parseFile(File(name))]);
+    } else if (type == FileSystemEntityType.link &&
+        options['follow-links'] as bool) {
+      return addFileSystemEntity(Link(name).targetSync());
+    } else {
+      return Future.value([]);
     }
   }
 
   Iterable<String> parseFile(File file) {
-    if (!options['include-hidden'] &&
+    if (!(options['include-hidden'] as bool) &&
         path.split(file.path).any((name) => name[0] == '.' && name != '.')) {
       return [];
     }
 
     String root;
     if (options['output'] != null) {
-      root = path.relative(path.dirname(options['output']));
+      root = path.relative(path.dirname(options['output'] as String));
     } else {
       root = '.';
     }
 
     List<List<String>> lines = [];
-    CompilationUnit unit = parseDartFile(file.path);
+    var result = an.parseFile(
+        path: file.path, featureSet: FeatureSet.fromEnableFlags([]));
+    var unit = result.unit;
     unit.declarations.forEach((declaration) {
       if (declaration is FunctionDeclaration) {
-        lines.add(
-            [
-                declaration.name,
-                path.relative(file.path, from: root),
-                '/^;"',
-                'f',
-                options['line-numbers'] ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}' : '']);
+        lines.add([
+          declaration.name.name,
+          path.relative(file.path, from: root),
+          '/^;"',
+          'f',
+          options['line-numbers'] as bool
+              ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}'
+              : ''
+        ]);
       } else if (declaration is ClassDeclaration) {
-        lines.add(
-            [
-                declaration.name,
-                path.relative(file.path, from: root),
-                '/${klass.matchAsPrefix(declaration.toSource())[0]}/;"',
-                'c',
-                options['line-numbers'] ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}' : '']);
+        lines.add([
+          declaration.name.name,
+          path.relative(file.path, from: root),
+          '/${klass.matchAsPrefix(declaration.toSource())[0]}/;"',
+          'c',
+          options['line-numbers'] as bool
+              ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}'
+              : ''
+        ]);
         declaration.members.forEach((member) {
           if (member is ConstructorDeclaration) {
-            lines.add(
-                [
-                    member.name == null ? declaration.name : member.name,
-                    path.relative(file.path, from: root),
-                    '/${constructor.matchAsPrefix(member.toSource())[0]}/;"',
-                    'M',
-                    'class:${declaration.name}',
-                    options['line-numbers'] ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}' : '']);
+            lines.add([
+              member.name == null ? declaration.name.name : member.name.name,
+              path.relative(file.path, from: root),
+              '/${constructor.matchAsPrefix(member.toSource())[0]}/;"',
+              'M',
+              'class:${declaration.name}',
+              options['line-numbers'] as bool
+                  ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}'
+                  : ''
+            ]);
           } else if (member is FieldDeclaration) {
             member.fields.variables.forEach((variable) {
-              lines.add(
-                  [
-                      variable.name,
-                      path.relative(file.path, from: root),
-                      '/${member.toSource()}/;"',
-                      'i',
-                      'class:${declaration.name}',
-                      options['line-numbers'] ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}' : '']);
+              lines.add([
+                variable.name.name,
+                path.relative(file.path, from: root),
+                '/${member.toSource()}/;"',
+                'i',
+                'class:${declaration.name}',
+                options['line-numbers'] as bool
+                    ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}'
+                    : ''
+              ]);
             });
           } else if (member is MethodDeclaration) {
-            lines.add(
-                [
-                    member.name,
-                    path.relative(file.path, from: root),
-                    '/${method.matchAsPrefix(member.toSource())[0]}/;"',
-                    member.isStatic ? 'M' : 'm',
-                    'class:${declaration.name}',
-                    options['line-numbers'] ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}' : '']);
+            lines.add([
+              member.name.name,
+              path.relative(file.path, from: root),
+              '/${method.matchAsPrefix(member.toSource())[0]}/;"',
+              member.isStatic ? 'M' : 'm',
+              'class:${declaration.name}',
+              options['line-numbers'] as bool
+                  ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}'
+                  : ''
+            ]);
           }
         });
       }
@@ -133,30 +153,28 @@ class Ctags {
 }
 
 main([List<String> args]) {
-  ArgParser parser = new ArgParser();
-  parser.addOption(
-      'output',
+  ArgParser parser = ArgParser();
+  parser.addOption('output',
       abbr: 'o',
       help: 'Output file for tags (default: stdout)',
       valueHelp: 'FILE');
-  parser.addFlag('follow-links', help: 'Follow symbolic links (default: false)', negatable: false);
-  parser.addFlag(
-      'include-hidden',
-      help: 'Include hidden directories (default: false)',
-      negatable: false);
-  parser.addFlag(
-      'line-numbers',
+  parser.addFlag('follow-links',
+      help: 'Follow symbolic links (default: false)', negatable: false);
+  parser.addFlag('include-hidden',
+      help: 'Include hidden directories (default: false)', negatable: false);
+  parser.addFlag('line-numbers',
       abbr: 'l',
       help: 'Add line numbers to extension fields (default: false)',
       negatable: false);
-  parser.addFlag('skip-sort', help: 'Skip sorting the output (default: false)', negatable: false);
+  parser.addFlag('skip-sort',
+      help: 'Skip sorting the output (default: false)', negatable: false);
   parser.addFlag('help', abbr: 'h', help: 'Show this help', negatable: false);
   ArgResults options = parser.parse(args);
-  if (options['help']) {
+  if (options['help'] as bool) {
     print(
         'Usage:\n\tpub global run dart_ctags:tags [OPTIONS] [FILES...]\n\tpub run tags [OPTIONS] [FILES...]\n');
-    print(parser.getUsage());
+    print(parser.usage);
     exit(0);
   }
-  new Ctags(options).generate();
+  Ctags(options).generate();
 }
