@@ -2,7 +2,7 @@ author: Andrew Lazarus <nerdrew@gmail.com>
 homepage: https://github.com/nerdrew/dart-ctags
 description: ctags compatible tag file generator for dart code
 name: dart_ctags
-version: 0.0.2
+version: 0.0.3
 environment:
   sdk: ">=2.0.0 <3.0.0"
 dependencies:
