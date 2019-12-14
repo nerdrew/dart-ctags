@@ -115,10 +115,10 @@ class Ctags {
               path.relative(file.path, from: root),
               '/${constructor.matchAsPrefix(member.toSource())[0]}/;"',
               'M',
-              'class:${declaration.name}',
               options['line-numbers'] as bool
                   ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}'
-                  : ''
+                  : '',
+              'class:${declaration.name}'
             ]);
           } else if (member is FieldDeclaration) {
             member.fields.variables.forEach((variable) {
@@ -127,10 +127,10 @@ class Ctags {
                 path.relative(file.path, from: root),
                 '/${member.toSource()}/;"',
                 'i',
-                'class:${declaration.name}',
                 options['line-numbers'] as bool
                     ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}'
-                    : ''
+                    : '',
+                'class:${declaration.name}'
               ]);
             });
           } else if (member is MethodDeclaration) {
@@ -139,10 +139,10 @@ class Ctags {
               path.relative(file.path, from: root),
               '/${method.matchAsPrefix(member.toSource())[0]}/;"',
               member.isStatic ? 'M' : 'm',
-              'class:${declaration.name}',
               options['line-numbers'] as bool
                   ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}'
-                  : ''
+                  : '',
+              'class:${declaration.name}'
             ]);
           }
         });
