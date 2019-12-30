@@ -40,7 +40,7 @@ class Ctags {
   }
 
   String _parseArgs(String input) {
-    // everything in the parenthesis
+    // everything in the parentheses
     return input.contains('(') && input.contains(')')
         ? input.split('(')[1].split(')')[0]
         : '';
@@ -64,7 +64,7 @@ class Ctags {
   void generate() {
     Iterable<String> dirs;
 
-    if (options.rest.isEmpty as bool) {
+    if (options.rest.isEmpty) {
       dirs = ['.'];
     } else {
       dirs = options.rest;
