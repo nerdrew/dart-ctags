@@ -16,10 +16,55 @@ class Ctags {
 
   Ctags(this.options);
 
-  generate() {
+  String _parseVarType(String input) {
+    // const int test = 1;
+    // final List<Map<String, dynamic>> list = [{'a': 1}];
+    var leftHandSide = input.split('=')[0];
+
+    // const int test
+    // final List<Map<String, dynamic>> list
+    var varTypeList = leftHandSide
+        .split(' ')
+        .where((s) => s != 'const' && s != 'final' && s != 'static')
+        .join(' ')
+        .trim()
+        .split(' ');
+
+    // [int, test]
+    // [List<Map<String,, dynamic>>, list]
+    varTypeList.removeLast();
+
+    // [int]
+    // [List<Map<String,, dynamic>>]
+    return varTypeList.join(' ');
+  }
+
+  String _parseArgs(String input) {
+    // everything in the parenthesis
+    return input.contains('(') && input.contains(')')
+        ? input.split('(')[1].split(')')[0]
+        : '';
+  }
+
+  String _parseFunctionReturnType(String input) {
+    // assume following dart lint suggestion of always declaring return type
+    return input.split(' ')[0];
+  }
+
+  String _parseMethodReturnType(String input) {
+    var returnType = input
+        .split(' ')
+        .where((s) => s != '@override' && s != 'static')
+        .join(' ')
+        .split(' ')[0];
+    // return blank if no return type specified
+    return returnType.contains('(') ? '' : returnType;
+  }
+
+  void generate() {
     Iterable<String> dirs;
 
-    if (options.rest.isEmpty) {
+    if (options.rest.isEmpty as bool) {
       dirs = ['.'];
     } else {
       dirs = options.rest;
@@ -89,6 +134,8 @@ class Ctags {
     var unit = result.unit;
     unit.declarations.forEach((declaration) {
       if (declaration is FunctionDeclaration) {
+        var declarationSource = declaration.toSource();
+
         lines.add([
           declaration.name.name,
           path.relative(file.path, from: root),
@@ -96,7 +143,9 @@ class Ctags {
           'f',
           options['line-numbers'] as bool
               ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}'
-              : ''
+              : '',
+          'signature:(${_parseArgs(declarationSource)})',
+          'type:${_parseFunctionReturnType(declarationSource)}'
         ]);
       } else if (declaration is ClassDeclaration) {
         lines.add([
@@ -104,55 +153,90 @@ class Ctags {
           path.relative(file.path, from: root),
           '/${klass.matchAsPrefix(declaration.toSource())[0]}/;"',
           'c',
+          'access:${declaration.name.name[0] == '_' ? 'private' : 'public'}',
           options['line-numbers'] as bool
               ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}'
               : ''
         ]);
         declaration.members.forEach((member) {
           if (member is ConstructorDeclaration) {
+            String name;
+            int offset;
+            if (member.name == null) {
+              name = declaration.name.name;
+              offset = declaration.offset;
+            } else {
+              name = member.name.name;
+              offset = member.offset;
+            }
+
             lines.add([
-              member.name == null ? declaration.name.name : member.name.name,
+              name,
               path.relative(file.path, from: root),
               '/${constructor.matchAsPrefix(member.toSource())[0]}/;"',
-              'M',
+              'C',
               options['line-numbers'] as bool
-                  ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}'
+                  ? 'line:${unit.lineInfo.getLocation(offset).lineNumber}'
                   : '',
-              'class:${declaration.name}'
+              'class:${declaration.name}',
+              'signature:(${_parseArgs(member.toSource())})',
             ]);
           } else if (member is FieldDeclaration) {
             member.fields.variables.forEach((variable) {
+              var memberSource = member.toSource();
+
               lines.add([
                 variable.name.name,
                 path.relative(file.path, from: root),
-                '/${member.toSource()}/;"',
+                '/${memberSource}/;"',
                 'i',
+                'access:${variable.name.name[0] == '_' ? 'private' : 'public'}',
                 options['line-numbers'] as bool
                     ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}'
                     : '',
-                'class:${declaration.name}'
+                'class:${declaration.name}',
+                'type:${_parseVarType(memberSource)}'
               ]);
             });
           } else if (member is MethodDeclaration) {
+            var tag = 'm';
+            if (member.isStatic) {
+              tag = 'M';
+            } else if (member.isOperator) {
+              tag = 'o';
+            } else if (member.isGetter) {
+              tag = 'g';
+            } else if (member.isSetter) {
+              tag = 's';
+            } else if (member.isAbstract) {
+              tag = 'a';
+            }
+
+            var memberSource = member.toSource();
+
             lines.add([
               member.name.name,
               path.relative(file.path, from: root),
-              '/${method.matchAsPrefix(member.toSource())[0]}/;"',
-              member.isStatic ? 'M' : 'm',
+              '/${method.matchAsPrefix(memberSource)[0]}/;"',
+              tag,
+              'access:${member.name.name[0] == '_' ? 'private' : 'public'}',
               options['line-numbers'] as bool
                   ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}'
                   : '',
-              'class:${declaration.name}'
+              'class:${declaration.name}',
+              'signature:(${_parseArgs(memberSource)})',
+              'type:${_parseMethodReturnType(memberSource)}'
             ]);
           }
         });
       }
     });
-    return lines.map((line) => line.join('\t'));
+    // eliminate \t string termination
+    return lines.map((line) => line.join('\t').trimRight());
   }
 }
 
-main([List<String> args]) {
+void main([List<String> args]) {
   ArgParser parser = ArgParser();
   parser.addOption('output',
       abbr: 'o',
