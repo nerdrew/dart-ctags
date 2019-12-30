@@ -40,7 +40,7 @@ class Ctags {
   }
 
   String _parseArgs(String input) {
-    // everything in the brackets
+    // everything in the parenthesis
     return input.contains('(') && input.contains(')')
         ? input.split('(')[1].split(')')[0]
         : '';
@@ -170,19 +170,16 @@ class Ctags {
               offset = member.offset;
             }
 
-            var constructorString =
-                constructor.matchAsPrefix(member.toSource())[0];
-
             lines.add([
               name,
               path.relative(file.path, from: root),
-              '/${constructorString}/;"',
+              '/${constructor.matchAsPrefix(member.toSource())[0]}/;"',
               'C',
               options['line-numbers'] as bool
                   ? 'line:${unit.lineInfo.getLocation(offset).lineNumber}'
                   : '',
               'class:${declaration.name}',
-              'signature:(${_parseArgs(constructorString)})',
+              'signature:(${_parseArgs(member.toSource())})',
             ]);
           } else if (member is FieldDeclaration) {
             member.fields.variables.forEach((variable) {
@@ -215,12 +212,12 @@ class Ctags {
               tag = 'a';
             }
 
-            var memberSource = method.matchAsPrefix(member.toSource())[0];
+            var memberSource = member.toSource();
 
             lines.add([
               member.name.name,
               path.relative(file.path, from: root),
-              '/${memberSource}/;"',
+              '/${method.matchAsPrefix(memberSource)[0]}/;"',
               tag,
               'access:${member.name.name[0] == '_' ? 'private' : 'public'}',
               options['line-numbers'] as bool
