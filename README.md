@@ -1,4 +1,6 @@
-# Vim compatible tags file for dart
+# Vim compatible tags file for dart.  
+> Now with full [Tagbar](https://github.com/majutsushi/tagbar) support!
+
 
 ## Example
 
