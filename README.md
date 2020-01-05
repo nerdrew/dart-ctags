@@ -5,20 +5,24 @@
 ## Example
 
 ### Install from repo
-``` 
+``` bash
 cd ~/dev/dart-ctags
 pub global activate -s path .
 ```
 
 ### or Install from pub
-```  
+``` bash
 pub global activate dart_ctags
 ```
 
 ### Use
-```
+``` bash
+# make sure that pub-cache/bin is in your path
+# export PATH="$PATH":"$HOME/.pub-cache/bin"
+
 cd ~/dev/your-dart-project
-pub global run dart_ctags:tags -o .git/tags
+
+dart_ctags -l -o .git/tags
 ```
 
 ### Tagbar Config
@@ -54,8 +58,8 @@ let g:tagbar_type_dart = {
 
 ## Help
 
-```
-pub global run dart_ctags:tags -h
+``` bash
+dart_ctags -h
 Usage:
   pub global run dart_ctags:tags [OPTIONS] [FILES...]
   pub run tags.dart [OPTIONS] [FILES...]

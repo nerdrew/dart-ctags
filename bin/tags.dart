@@ -281,7 +281,7 @@ void main([List<String> args]) {
   ArgResults options = parser.parse(args);
   if (options['help'] as bool) {
     print(
-        'Usage:\n\tpub global run dart_ctags:tags [OPTIONS] [FILES...]\n\tpub run tags [OPTIONS] [FILES...]\n');
+        'Usage:\n\tdart_ctags [OPTIONS] [FILES...]\n\tpub global run dart_ctags:tags [OPTIONS] [FILES...]\n');
     print(parser.usage);
     exit(0);
   }
