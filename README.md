@@ -5,13 +5,13 @@
 ## Example
 
 ### Install from repo
-```
+``` 
 cd ~/dev/dart-ctags
 pub global activate -s path .
 ```
 
 ### or Install from pub
-```
+```  
 pub global activate dart_ctags
 ```
 
@@ -19,6 +19,37 @@ pub global activate dart_ctags
 ```
 cd ~/dev/your-dart-project
 pub global run dart_ctags:tags -o .git/tags
+```
+
+### Tagbar Config
+```
+let g:tagbar_type_dart = {
+    \ 'ctagstype' : 'dart',
+    \ 'kinds'     : [
+        \ 'i:imports:1',
+        \ 'C:consts',
+        \ 'v:variables',
+        \ 'F:functions',
+        \ 'c:classes',
+        \ 'r:constructors',
+        \ 'f:fields',
+        \ 'm:methods',
+        \ 'M:static methods',
+        \ 'o:operators',
+        \ 'g:getters',
+        \ 's:setters',
+        \ 'a:abstract functions',
+    \ ],
+    \ 'sro' : '.',
+    \ 'kind2scope' : {
+        \ 'c' : 'class',
+    \ },
+    \ 'scope2kind' : {
+        \ 'class' : 'c',
+    \ },
+    \ 'ctagsbin'  : 'pub',
+    \ 'ctagsargs' : 'global run dart_ctags:tags -l'
+\ }
 ```
 
 ## Help
