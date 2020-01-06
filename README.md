@@ -60,8 +60,8 @@ let g:tagbar_type_dart = {
 ``` bash
 dart_ctags -h
 Usage:
+  dart_ctags [OPTIONS] [FILES...]
   pub global run dart_ctags:tags [OPTIONS] [FILES...]
-  pub run tags.dart [OPTIONS] [FILES...]
 
 -o, --output=<FILE>     Output file for tags (default: stdout)
     --follow-links      Follow symbolic links (default: false)
