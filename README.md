@@ -15,6 +15,19 @@ pub global activate -s path .
 pub global activate dart_ctags
 ```
 
+### Recommended Post-Installation
+
+> The installation of the `dart_ctags` executable from pub is not a compiled
+> binary.  These steps will overwrite the bash script placed by pub in the bin
+> folder for dart_ctags with a natively compiled bin that is significantly
+> faster.
+
+``` bash
+cd $(find ~/.pub-cache/hosted -type d -name "dart_ctags*")
+pub get
+dart2native bin/tags.dart -o ~/.pub-cache/bin/dart_ctags
+```
+
 ### Use
 ``` bash
 # make sure that pub-cache/bin is in your path
