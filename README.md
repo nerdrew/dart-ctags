@@ -21,7 +21,6 @@ pub global activate dart_ctags
 # export PATH="$PATH":"$HOME/.pub-cache/bin"
 
 cd ~/dev/your-dart-project
-
 dart_ctags -l -o .git/tags
 ```
 
@@ -51,8 +50,8 @@ let g:tagbar_type_dart = {
     \ 'scope2kind' : {
         \ 'class' : 'c',
     \ },
-    \ 'ctagsbin'  : 'pub',
-    \ 'ctagsargs' : 'global run dart_ctags:tags -l'
+    \ 'ctagsbin'  : 'dart_ctags',
+    \ 'ctagsargs' : '-l'
 \ }
 ```
 
