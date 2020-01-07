@@ -1,18 +1,19 @@
-# Vim compatible tags file for dart.  
-> Now with full [Tagbar](https://github.com/majutsushi/tagbar) support!
+# Vim compatible tags file for dart.
+> Now with native [Tagbar](https://github.com/majutsushi/tagbar) support!
 
 
 ## Example
 
-### Install from repo
+### Install from pub
 ``` bash
-cd ~/dev/dart-ctags
-pub global activate -s path .
+$ pub global activate dart_ctags
 ```
 
-### or Install from pub
+### Install from Github
 ``` bash
-pub global activate dart_ctags
+$ git clone https://github.com/nerdrew/dart-ctags.git
+$ cd dart-ctags
+$ pub global activate -s path .
 ```
 
 ### Recommended Post-Installation
@@ -22,10 +23,18 @@ pub global activate dart_ctags
 > folder for dart_ctags with a natively compiled bin that is significantly
 > faster.
 
+##### Installed from pub
+
 ``` bash
-cd $(find ~/.pub-cache/hosted -type d -name "dart_ctags*")
-pub get
-dart2native bin/tags.dart -o ~/.pub-cache/bin/dart_ctags
+$ cd $(find ~/.pub-cache/hosted -type d -name "dart_ctags*") && pub get
+$ dart2native bin/tags.dart -o ~/.pub-cache/bin/dart_ctags
+```
+
+##### Installed from Github
+
+``` bash
+$ cd ~/git_repo_of_dart_ctags
+$ dart2native bin/tags.dart -o ~/.pub-cache/bin/dart_ctags
 ```
 
 ### Use
@@ -33,39 +42,8 @@ dart2native bin/tags.dart -o ~/.pub-cache/bin/dart_ctags
 # make sure that pub-cache/bin is in your path
 # export PATH="$PATH":"$HOME/.pub-cache/bin"
 
-cd ~/dev/your-dart-project
-dart_ctags -l -o .git/tags
-```
-
-### Tagbar Config
-```
-let g:tagbar_type_dart = {
-    \ 'ctagstype' : 'dart',
-    \ 'kinds'     : [
-        \ 'i:imports:1',
-        \ 'C:consts',
-        \ 'v:variables',
-        \ 'F:functions',
-        \ 'c:classes',
-        \ 'r:constructors',
-        \ 'f:fields',
-        \ 'm:methods',
-        \ 'M:static methods',
-        \ 'o:operators',
-        \ 'g:getters',
-        \ 's:setters',
-        \ 'a:abstract functions',
-    \ ],
-    \ 'sro' : '.',
-    \ 'kind2scope' : {
-        \ 'c' : 'class',
-    \ },
-    \ 'scope2kind' : {
-        \ 'class' : 'c',
-    \ },
-    \ 'ctagsbin'  : 'dart_ctags',
-    \ 'ctagsargs' : '-l'
-\ }
+$ cd ~/dev/your-dart-project
+$ dart_ctags -l -o .git/tags
 ```
 
 ## Help
