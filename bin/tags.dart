@@ -204,7 +204,6 @@ class Ctags {
                   : '',
               'class:${declaration.name}',
               'signature:${member.parameters.toString()}',
-              // 'signature:(${_parseArgs(member.toSource())})',
             ]);
           } else if (member is FieldDeclaration) {
             member.fields.variables.forEach((variable) {
