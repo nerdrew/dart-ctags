@@ -226,13 +226,18 @@ class Ctags {
             var tag = 'm';
             if (member.isStatic) {
               tag = 'M';
-            } else if (member.isOperator) {
+            }
+            // better if static is least preferred
+            if (member.isOperator) {
               tag = 'o';
-            } else if (member.isGetter) {
+            }
+            if (member.isGetter) {
               tag = 'g';
-            } else if (member.isSetter) {
+            }
+            if (member.isSetter) {
               tag = 's';
-            } else if (member.isAbstract) {
+            }
+            if (member.isAbstract) {
               tag = 'a';
             }
 
