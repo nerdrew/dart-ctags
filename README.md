@@ -46,6 +46,14 @@ $ cd ~/dev/your-dart-project
 $ dart_ctags -l -o .git/tags
 ```
 
+### Use with Tagbar (the vim plugin)
+
+To use with [tagbar](https://github.com/majutsushi/tagbar), add this to your vim config:
+
+```vimscript
+let g:tagbar_type_dart = { 'ctagsbin': '~/.pub-cache/bin/dart_ctags' }
+```
+
 ## Help
 
 ``` bash
