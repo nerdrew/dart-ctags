@@ -16,7 +16,7 @@ class Ctags {
 
   Ctags(this.options);
 
-  String _parseVarType(String input) {
+  String _parseFieldType(String input) {
     // const int test = 1;
     // final List<Map<String, dynamic>> list = [{'a': 1}];
     var leftHandSide = input.split('=')[0];
@@ -35,36 +35,14 @@ class Ctags {
     varTypeList.removeLast();
 
     // [int]
-    // [List<Map<String,, dynamic>>]
+    // [List<Map<String, dynamic>>]
     return varTypeList.join(' ');
-  }
-
-  String _parseArgs(String input) {
-    // everything in the parenthesis
-    return input.contains('(') && input.contains(')')
-        ? input.split('(')[1].split(')')[0]
-        : '';
-  }
-
-  String _parseFunctionReturnType(String input) {
-    // assume following dart lint suggestion of always declaring return type
-    return input.split(' ')[0];
-  }
-
-  String _parseMethodReturnType(String input) {
-    var returnType = input
-        .split(' ')
-        .where((s) => s != '@override' && s != 'static')
-        .join(' ')
-        .split(' ')[0];
-    // return blank if no return type specified
-    return returnType.contains('(') ? '' : returnType;
   }
 
   void generate() {
     Iterable<String> dirs;
 
-    if (options.rest.isEmpty as bool) {
+    if (options.rest.isEmpty) {
       dirs = ['.'];
     } else {
       dirs = options.rest;
@@ -132,21 +110,65 @@ class Ctags {
     var result = an.parseFile(
         path: file.path, featureSet: FeatureSet.fromEnableFlags([]));
     var unit = result.unit;
+
+    // import directives
+    unit.directives.forEach((d) {
+      String tag;
+      switch (d.keyword.toString()) {
+        case 'import':
+          tag = 'i';
+          break;
+        case 'export':
+          return;
+        case 'part':
+          return;
+        case 'library':
+          return;
+        default:
+          // not handled
+          return;
+      }
+
+      lines.add([
+        '${d.toString().split("'")[1]}',
+        path.relative(file.path, from: root),
+        '/^;"',
+        tag,
+        options['line-numbers'] as bool
+            ? 'line:${unit.lineInfo.getLocation(d.offset).lineNumber}'
+            : '',
+        'type:${d.toString().contains(' as ') ? 'as ' + d.toString().split(' as ')[1].split(';')[0] : ''}'
+      ]);
+    });
     unit.declarations.forEach((declaration) {
       if (declaration is FunctionDeclaration) {
-        var declarationSource = declaration.toSource();
-
         lines.add([
           declaration.name.name,
           path.relative(file.path, from: root),
           '/^;"',
-          'f',
+          'F',
           options['line-numbers'] as bool
               ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}'
               : '',
-          'signature:(${_parseArgs(declarationSource)})',
-          'type:${_parseFunctionReturnType(declarationSource)}'
+          'signature:${declaration.functionExpression.parameters.toString()}',
+          'type:${declaration.returnType.toString()}'
         ]);
+      } else if (declaration is TopLevelVariableDeclaration) {
+        var varType = declaration.variables.type.toString();
+        var isConst = declaration.variables.isConst;
+
+        declaration.variables.variables.asMap().values.forEach((v) {
+          lines.add([
+            v.name.name,
+            path.relative(file.path, from: root),
+            '/^;"',
+            '${isConst ? 'C' : 'v'}',
+            options['line-numbers'] as bool
+                ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}'
+                : '',
+            'type:${varType == 'null' ? isConst ? '' : declaration.variables.keyword.toString() : varType}'
+          ]);
+        });
       } else if (declaration is ClassDeclaration) {
         lines.add([
           declaration.name.name,
@@ -156,7 +178,8 @@ class Ctags {
           'access:${declaration.name.name[0] == '_' ? 'private' : 'public'}',
           options['line-numbers'] as bool
               ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}'
-              : ''
+              : '',
+          'type:${declaration.isAbstract ? 'abstract' : ''} class',
         ]);
         declaration.members.forEach((member) {
           if (member is ConstructorDeclaration) {
@@ -174,12 +197,13 @@ class Ctags {
               name,
               path.relative(file.path, from: root),
               '/${constructor.matchAsPrefix(member.toSource())[0]}/;"',
-              'C',
+              'r',
+              'access:${name[0] == '_' ? 'private' : 'public'}',
               options['line-numbers'] as bool
                   ? 'line:${unit.lineInfo.getLocation(offset).lineNumber}'
                   : '',
               'class:${declaration.name}',
-              'signature:(${_parseArgs(member.toSource())})',
+              'signature:${member.parameters.toString()}',
             ]);
           } else if (member is FieldDeclaration) {
             member.fields.variables.forEach((variable) {
@@ -189,26 +213,31 @@ class Ctags {
                 variable.name.name,
                 path.relative(file.path, from: root),
                 '/${memberSource}/;"',
-                'i',
+                'f',
                 'access:${variable.name.name[0] == '_' ? 'private' : 'public'}',
                 options['line-numbers'] as bool
                     ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}'
                     : '',
                 'class:${declaration.name}',
-                'type:${_parseVarType(memberSource)}'
+                'type:${_parseFieldType(memberSource)}'
               ]);
             });
           } else if (member is MethodDeclaration) {
             var tag = 'm';
             if (member.isStatic) {
               tag = 'M';
-            } else if (member.isOperator) {
+            }
+            // better if static is least preferred
+            if (member.isOperator) {
               tag = 'o';
-            } else if (member.isGetter) {
+            }
+            if (member.isGetter) {
               tag = 'g';
-            } else if (member.isSetter) {
+            }
+            if (member.isSetter) {
               tag = 's';
-            } else if (member.isAbstract) {
+            }
+            if (member.isAbstract) {
               tag = 'a';
             }
 
@@ -224,8 +253,8 @@ class Ctags {
                   ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}'
                   : '',
               'class:${declaration.name}',
-              'signature:(${_parseArgs(memberSource)})',
-              'type:${_parseMethodReturnType(memberSource)}'
+              'signature:${member.parameters.toString()}',
+              'type:${member.returnType.toString()}'
             ]);
           }
         });
@@ -256,7 +285,7 @@ void main([List<String> args]) {
   ArgResults options = parser.parse(args);
   if (options['help'] as bool) {
     print(
-        'Usage:\n\tpub global run dart_ctags:tags [OPTIONS] [FILES...]\n\tpub run tags [OPTIONS] [FILES...]\n');
+        'Usage:\n\tdart_ctags [OPTIONS] [FILES...]\n\tpub global run dart_ctags:tags [OPTIONS] [FILES...]\n');
     print(parser.usage);
     exit(0);
   }
