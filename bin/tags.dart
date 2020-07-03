@@ -48,7 +48,7 @@ class Ctags {
       dirs = options.rest;
     }
 
-    List<String> lines = [
+    final lines = <String>[
       '!_TAG_FILE_FORMAT\t2\t/extended format; --format=1 will not append ;" to lines/',
       '!_TAG_FILE_SORTED\t1\t/0=unsorted, 1=sorted, 2=foldcase/'
     ];
@@ -71,7 +71,7 @@ class Ctags {
   }
 
   Future<Iterable<Iterable<String>>> addFileSystemEntity(String name) {
-    FileSystemEntityType type = FileSystemEntity.typeSync(name);
+    final type = FileSystemEntity.typeSync(name);
 
     if (type == FileSystemEntityType.directory) {
       return Directory(name)
@@ -106,10 +106,16 @@ class Ctags {
       root = '.';
     }
 
-    List<List<String>> lines = [];
-    var result = an.parseFile(
-        path: file.path, featureSet: FeatureSet.fromEnableFlags([]));
-    var unit = result.unit;
+    final lines = <List<String>>[];
+    var unit, result;
+    try {
+      result =
+          an.parseFile(path: file.path, featureSet: FeatureSet.fromEnableFlags([]));
+      unit = result.unit;
+    } catch (e) {
+      print('ERROR: unable to generate tags for ${file.path}');
+      return lines.map((line) => line.join('\t').trimRight());
+    }
 
     // import directives
     unit.directives.forEach((d) {
@@ -266,11 +272,9 @@ class Ctags {
 }
 
 void main([List<String> args]) {
-  ArgParser parser = ArgParser();
+  final parser = ArgParser();
   parser.addOption('output',
-      abbr: 'o',
-      help: 'Output file for tags (default: stdout)',
-      valueHelp: 'FILE');
+      abbr: 'o', help: 'Output file for tags (default: stdout)', valueHelp: 'FILE');
   parser.addFlag('follow-links',
       help: 'Follow symbolic links (default: false)', negatable: false);
   parser.addFlag('include-hidden',
@@ -282,7 +286,7 @@ void main([List<String> args]) {
   parser.addFlag('skip-sort',
       help: 'Skip sorting the output (default: false)', negatable: false);
   parser.addFlag('help', abbr: 'h', help: 'Show this help', negatable: false);
-  ArgResults options = parser.parse(args);
+  final options = parser.parse(args);
   if (options['help'] as bool) {
     print(
         'Usage:\n\tdart_ctags [OPTIONS] [FILES...]\n\tpub global run dart_ctags:tags [OPTIONS] [FILES...]\n');
