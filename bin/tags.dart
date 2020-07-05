@@ -119,14 +119,21 @@ class Ctags {
 
     // import directives
     unit.directives.forEach((d) {
-      String tag;
+      String tag, type;
       switch (d.keyword.toString()) {
         case 'import':
           tag = 'i';
+          type = d.toString().contains(' as ')
+              ? 'as ' + d.toString().split(' as ')[1].split(';')[0]
+              : '';
           break;
         case 'export':
           return;
         case 'part':
+          tag = 'p';
+          type = d.toString().contains(' of ')
+              ? 'of ' + d.toString().split(' of ')[1].split(';')[0]
+              : '';
           return;
         case 'library':
           return;
@@ -143,7 +150,7 @@ class Ctags {
         options['line-numbers'] as bool
             ? 'line:${unit.lineInfo.getLocation(d.offset).lineNumber}'
             : '',
-        'type:${d.toString().contains(' as ') ? 'as ' + d.toString().split(' as ')[1].split(';')[0] : ''}'
+        'type:$type'
       ]);
     });
     unit.declarations.forEach((declaration) {
