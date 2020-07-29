@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/analysis/features.dart';
 import 'package:analyzer/dart/analysis/utilities.dart' as an;
@@ -117,33 +118,60 @@ class Ctags {
       return lines.map((line) => line.join('\t').trimRight());
     }
 
-    // import directives
+    // import, export, part, part of, library directives
     unit.directives.forEach((d) {
-      String tag, type;
+      String tag, type, display;
       switch (d.keyword.toString()) {
         case 'import':
           tag = 'i';
           type = d.toString().contains(' as ')
               ? 'as ' + d.toString().split(' as ')[1].split(';')[0]
               : '';
+          display = '${d.toString().split("'")[1]}';
           break;
         case 'export':
-          return;
+          tag = 'e';
+          type = '';
+
+          var exportStr = d.toString().split(' ');
+          if (exportStr.isNotEmpty) {
+            display = exportStr[1].replaceAll(RegExp(r'.$'), '');
+          }
+
+          break;
         case 'part':
-          tag = 'p';
-          type = d.toString().contains(' of ')
-              ? 'of ' + d.toString().split(' of ')[1].split(';')[0]
-              : '';
-          return;
+          final partOf = d.toString().contains(' of ');
+          tag = partOf ? 'p' : 'P';
+          type = '';
+          if (partOf) {
+            final partOfString =
+                file.readAsLinesSync().firstWhere((str) => str.contains('part of'));
+
+            if (partOfString.isNotEmpty) {
+              display = partOfString.split("'")[1];
+            }
+          } else {
+            display = '${d.toString().split("'")[1]}';
+          }
+
+          break;
         case 'library':
-          return;
+          tag = 'l';
+          type = '';
+
+          var libraryStr = d.toString().split(' ');
+          if (libraryStr.isNotEmpty) {
+            display = libraryStr[1].replaceAll(RegExp(r'.$'), '');
+          }
+
+          break;
         default:
           // not handled
           return;
       }
 
       lines.add([
-        '${d.toString().split("'")[1]}',
+        display,
         path.relative(file.path, from: root),
         '/^;"',
         tag,
@@ -153,6 +181,7 @@ class Ctags {
         'type:$type'
       ]);
     });
+
     unit.declarations.forEach((declaration) {
       if (declaration is FunctionDeclaration) {
         lines.add([
