@@ -295,7 +295,7 @@ class Ctags {
                   ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}'
                   : '',
               'class:${declaration.name}',
-              'signature:${member.parameters.toString()}',
+              'signature:${tag == 'g' ? '' : member.parameters.toString() }',
               'type:${member.returnType.toString()}'
             ]);
           }
