@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/analysis/features.dart';
 import 'package:analyzer/dart/analysis/utilities.dart' as an;
@@ -12,6 +14,7 @@ class Ctags {
 
   // /./ in dart/js does not match newlines, /[^]/ matches . + \n
   RegExp klass = RegExp(r'^[^]+?($|{)');
+  RegExp enumeration = RegExp(r'^[^]+?($|{)');
   RegExp constructor = RegExp(r'^[^]+?($|{|;)');
   RegExp method = RegExp(r'^[^]+?($|{|;|\=>)');
 
@@ -71,21 +74,21 @@ class Ctags {
     });
   }
 
-  Future<Iterable<Iterable<String>>> addFileSystemEntity(String name) {
+  Future<Iterable<Iterable<String>>> addFileSystemEntity(String name) async {
     final type = FileSystemEntity.typeSync(name);
 
     if (type == FileSystemEntityType.directory) {
-      return Directory(name)
+      return Future.wait(await Directory(name)
           .list(recursive: true, followLinks: options['follow-links'] as bool)
-          .map((file) {
+          .map((file) async {
         if (file is File && path.extension(file.path) == '.dart') {
-          return parseFile(file);
+          return await parseFile(file);
         } else {
           return <String>[];
         }
-      }).toList();
+      }).toList());
     } else if (type == FileSystemEntityType.file) {
-      return Future.value([parseFile(File(name))]);
+      return Future.value([await parseFile(File(name))]);
     } else if (type == FileSystemEntityType.link &&
         options['follow-links'] as bool) {
       return addFileSystemEntity(Link(name).targetSync());
@@ -94,7 +97,7 @@ class Ctags {
     }
   }
 
-  Iterable<String> parseFile(File file) {
+  Future<Iterable<String>> parseFile(File file) async {
     if (!(options['include-hidden'] as bool) &&
         path.split(file.path).any((name) => name[0] == '.' && name != '.')) {
       return [];
@@ -108,7 +111,8 @@ class Ctags {
     }
 
     final lines = <List<String>>[];
-    var unit, result;
+    ParseStringResult result;
+    CompilationUnit unit;
     try {
       result =
           an.parseFile(path: file.path, featureSet: FeatureSet.fromEnableFlags([]));
@@ -119,7 +123,7 @@ class Ctags {
     }
 
     // import, export, part, part of, library directives
-    unit.directives.forEach((d) {
+    await Future.forEach(unit.directives, (Directive d) async {
       String tag, type, display;
       switch (d.keyword.toString()) {
         case 'import':
@@ -130,7 +134,7 @@ class Ctags {
           display = '${d.toString().split("'")[1]}';
           break;
         case 'export':
-          tag = 'e';
+          tag = 'x';
           type = '';
 
           var exportStr = d.toString().split(' ');
@@ -144,8 +148,16 @@ class Ctags {
           tag = partOf ? 'p' : 'P';
           type = '';
           if (partOf) {
-            final partOfString =
-                file.readAsLinesSync().firstWhere((str) => str.contains('part of'));
+            String partOfString;
+
+            final lines =
+                utf8.decoder.bind(file.openRead()).transform(LineSplitter());
+            await for (final line in lines) {
+              if (line.contains('part of')) {
+                partOfString = line;
+                break;
+              }
+            }
 
             if (partOfString.isNotEmpty) {
               display = partOfString.split("'")[1];
@@ -221,7 +233,7 @@ class Ctags {
           options['line-numbers'] as bool
               ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}'
               : '',
-          'type:${declaration.isAbstract ? 'abstract' : ''} class',
+          'type:${declaration.isAbstract ? 'abstract ' : ''}class',
         ]);
         declaration.members.forEach((member) {
           if (member is ConstructorDeclaration) {
@@ -295,7 +307,7 @@ class Ctags {
                   ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}'
                   : '',
               'class:${declaration.name}',
-              'signature:${tag == 'g' ? '' : member.parameters.toString() }',
+              'signature:${tag == 'g' ? '' : member.parameters.toString()}',
               'type:${member.returnType.toString()}'
             ]);
           }
