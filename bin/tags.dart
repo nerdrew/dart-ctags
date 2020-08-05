@@ -223,6 +223,40 @@ class Ctags {
             'type:${varType == 'null' ? isConst ? '' : declaration.variables.keyword.toString() : varType}'
           ]);
         });
+      } else if (declaration is EnumDeclaration) {
+        lines.add([
+          declaration.name.name,
+          path.relative(file.path, from: root),
+          '/${enumeration.matchAsPrefix(declaration.toSource())[0]}/;"',
+          'E',
+          'access:${declaration.name.name[0] == '_' ? 'private' : 'public'}',
+          options['line-numbers'] as bool
+              ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}'
+              : '',
+          'type: enum',
+        ]);
+        declaration.constants.forEach((constant) {
+          String name;
+          int offset;
+
+          if (constant.name == null) {
+            name = declaration.name.name;
+            offset = declaration.offset;
+          } else {
+            name = constant.name.name;
+            offset = constant.offset;
+          }
+          lines.add([
+            name,
+            path.relative(file.path, from: root),
+            '/${enumeration.matchAsPrefix(constant.toSource())[0]}/;"',
+            'e',
+            options['line-numbers'] as bool
+                ? 'line:${unit.lineInfo.getLocation(offset).lineNumber}'
+                : '',
+            'enum:${declaration.name}',
+          ]);
+        });
       } else if (declaration is ClassDeclaration) {
         lines.add([
           declaration.name.name,
