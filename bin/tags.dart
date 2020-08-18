@@ -8,6 +8,7 @@ import 'package:analyzer/dart/analysis/features.dart';
 import 'package:analyzer/dart/analysis/utilities.dart' as an;
 import 'package:path/path.dart' as path;
 import 'package:args/args.dart';
+import 'package:quiver/async.dart';
 
 class Ctags {
   ArgResults options;
@@ -269,6 +270,55 @@ class Ctags {
               : '',
           'type:${declaration.isAbstract ? 'abstract ' : ''}class',
         ]);
+
+        // extends tag
+        declaration.extendsClause?.childEntities?.forEach((c) {
+          if (c.toString() != 'extends') {
+            lines.add([
+              '$c',
+              path.relative(file.path, from: root),
+              '/$c/;"',
+              'd',
+              options['line-numbers'] as bool
+                  ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}'
+                  : '',
+              'class:${declaration.name}',
+            ]);
+          }
+        });
+
+        // with tag
+        declaration.withClause?.childEntities?.forEach((c) {
+          if (c.toString() != 'with') {
+            lines.add([
+              '$c',
+              path.relative(file.path, from: root),
+              '/$c/;"',
+              'w',
+              options['line-numbers'] as bool
+                  ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}'
+                  : '',
+              'class:${declaration.name}',
+            ]);
+          }
+        });
+
+        // implements tag
+        declaration.implementsClause?.childEntities?.forEach((c) {
+          if (c.toString() != 'implements') {
+            lines.add([
+              '$c',
+              path.relative(file.path, from: root),
+              '/$c/;"',
+              'z',
+              options['line-numbers'] as bool
+                  ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}'
+                  : '',
+              'class:${declaration.name}',
+            ]);
+          }
+        });
+
         declaration.members.forEach((member) {
           if (member is ConstructorDeclaration) {
             String name;
