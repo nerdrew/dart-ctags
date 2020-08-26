@@ -15,6 +15,7 @@ class Ctags {
   // /./ in dart/js does not match newlines, /[^]/ matches . + \n
   RegExp klass = RegExp(r'^[^]+?($|{)');
   RegExp enumeration = RegExp(r'^[^]+?($|{)');
+  RegExp miXin = RegExp(r'^[^]+?($|{)');
   RegExp constructor = RegExp(r'^[^]+?($|{|;)');
   RegExp method = RegExp(r'^[^]+?($|{|;|\=>)');
 
@@ -134,7 +135,7 @@ class Ctags {
           display = '${d.toString().split("'")[1]}';
           break;
         case 'export':
-          tag = 'x';
+          tag = 't';
           type = '';
 
           var exportStr = d.toString().split(' ');
@@ -195,12 +196,103 @@ class Ctags {
     });
 
     unit.declarations.forEach((declaration) {
-      if (declaration is FunctionDeclaration) {
+      if (declaration is MixinDeclaration) {
+        lines.add([
+          declaration.name.name,
+          path.relative(file.path, from: root),
+          '/${miXin.matchAsPrefix(declaration.toSource())[0]}/;"',
+          'x',
+          'access:${declaration.name.name[0] == '_' ? 'private' : 'public'}',
+          options['line-numbers'] as bool
+              ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}'
+              : '',
+          'type:mixin',
+        ]);
+
+        declaration.members.forEach((member) {
+          if (member is ConstructorDeclaration) {
+            String name;
+            int offset;
+            if (member.name == null) {
+              name = declaration.name.name;
+              offset = declaration.offset;
+            } else {
+              name = member.name.name;
+              offset = member.offset;
+            }
+
+            lines.add([
+              name,
+              path.relative(file.path, from: root),
+              '/${constructor.matchAsPrefix(member.toSource())[0]}/;"',
+              'r',
+              'access:${name[0] == '_' ? 'private' : 'public'}',
+              options['line-numbers'] as bool
+                  ? 'line:${unit.lineInfo.getLocation(offset).lineNumber}'
+                  : '',
+              'mixin:{declaration.name}',
+              'signature:${member.parameters.toString()}',
+            ]);
+          } else if (member is FieldDeclaration) {
+            member.fields.variables.forEach((variable) {
+              var memberSource = member.toSource();
+
+              lines.add([
+                variable.name.name,
+                path.relative(file.path, from: root),
+                '/${memberSource}/;"',
+                'f',
+                'access:${variable.name.name[0] == '_' ? 'private' : 'public'}',
+                options['line-numbers'] as bool
+                    ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}'
+                    : '',
+                'mixin:{declaration.name}',
+                'type:${_parseFieldType(memberSource)}'
+              ]);
+            });
+          } else if (member is MethodDeclaration) {
+            var tag = 'm';
+            if (member.isStatic) {
+              tag = 'M';
+            }
+            // better if static is least preferred
+            if (member.isOperator) {
+              tag = 'o';
+            }
+            if (member.isGetter) {
+              tag = 'g';
+            }
+            if (member.isSetter) {
+              tag = 's';
+            }
+            if (member.isAbstract) {
+              tag = 'a';
+            }
+
+            var memberSource = member.toSource();
+
+            lines.add([
+              member.name.name,
+              path.relative(file.path, from: root),
+              '/${method.matchAsPrefix(memberSource)[0]}/;"',
+              tag,
+              'access:${member.name.name[0] == '_' ? 'private' : 'public'}',
+              options['line-numbers'] as bool
+                  ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}'
+                  : '',
+              'mixin:${declaration.name}',
+              'signature:${tag == 'g' ? '' : member.parameters.toString()}',
+              'type:${member.returnType.toString()}'
+            ]);
+          }
+        });
+      } else if (declaration is FunctionDeclaration) {
         lines.add([
           declaration.name.name,
           path.relative(file.path, from: root),
           '/^;"',
           'F',
+          'access:${declaration.name.name[0] == '_' ? 'private' : 'public'}',
           options['line-numbers'] as bool
               ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}'
               : '',
@@ -217,6 +309,7 @@ class Ctags {
             path.relative(file.path, from: root),
             '/^;"',
             '${isConst ? 'C' : 'v'}',
+            'access:${v.name.name[0] == '_' ? 'private' : 'public'}',
             options['line-numbers'] as bool
                 ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}'
                 : '',
@@ -233,7 +326,7 @@ class Ctags {
           options['line-numbers'] as bool
               ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}'
               : '',
-          'type: enum',
+          'type:enum',
         ]);
         declaration.constants.forEach((constant) {
           String name;
