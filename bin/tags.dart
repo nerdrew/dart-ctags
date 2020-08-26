@@ -122,7 +122,7 @@ class Ctags {
       return lines.map((line) => line.join('\t').trimRight());
     }
 
-    if (unit.directives.isNotEmpty) {
+    if (unit.directives.any((d) => d is ImportDirective)) {
       lines.add([
         'import',
         path.relative(file.path, from: root),
