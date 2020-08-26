@@ -1,7 +1,7 @@
 homepage: https://github.com/nerdrew/dart-ctags
 description: ctags compatible tag file generator for dart code
 name: dart_ctags
-version: 1.2.0
+version: 1.2.1
 environment:
     sdk: ">=2.0.0 <3.0.0"
 executables:
