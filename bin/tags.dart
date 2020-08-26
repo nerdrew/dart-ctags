@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:analyzer/dart/analysis/results.dart';
@@ -123,65 +122,67 @@ class Ctags {
       return lines.map((line) => line.join('\t').trimRight());
     }
 
+    if (unit.directives.isNotEmpty) {
+      lines.add([
+        'import',
+        path.relative(file.path, from: root),
+        '/import/;"',
+        'i',
+        options['line-numbers'] as bool
+            ? 'line:${unit.lineInfo.getLocation(unit.directives[0].offset).lineNumber}'
+            : '',
+        'type:directives',
+      ]);
+    }
+
     // import, export, part, part of, library directives
     await Future.forEach(unit.directives, (Directive d) async {
-      String tag, type, display;
-      switch (d.keyword.toString()) {
-        case 'import':
-          tag = 'i';
-          type = d.toString().contains(' as ')
-              ? 'as ' + d.toString().split(' as ')[1].split(';')[0]
-              : '';
-          display = '${d.toString().split("'")[1]}';
-          break;
-        case 'export':
-          tag = 't';
-          type = '';
+      String tag, importDirective, display;
 
-          var exportStr = d.toString().split(' ');
-          if (exportStr.isNotEmpty) {
-            display = exportStr[1].replaceAll(RegExp(r'.$'), '');
-          }
+      if (d is ImportDirective) {
+        display = d.childEntities
+            .where((element) => '$element' != 'import' && '$element' != ';')
+            .join(' ')
+            .trim();
 
-          break;
-        case 'part':
-          final partOf = d.toString().contains(' of ');
-          tag = partOf ? 'p' : 'P';
-          type = '';
-          if (partOf) {
-            String partOfString;
-
-            final lines =
-                utf8.decoder.bind(file.openRead()).transform(LineSplitter());
-            await for (final line in lines) {
-              if (line.contains('part of')) {
-                partOfString = line;
-                break;
-              }
-            }
-
-            if (partOfString.isNotEmpty) {
-              display = partOfString.split("'")[1];
-            }
-          } else {
-            display = '${d.toString().split("'")[1]}';
-          }
-
-          break;
-        case 'library':
-          tag = 'l';
-          type = '';
-
-          var libraryStr = d.toString().split(' ');
-          if (libraryStr.isNotEmpty) {
-            display = libraryStr[1].replaceAll(RegExp(r'.$'), '');
-          }
-
-          break;
-        default:
-          // not handled
-          return;
+        if (display.contains('dart:')) {
+          tag = 'D';
+        } else if (display.contains('package:')) {
+          tag = 'U';
+        } else {
+          // local
+          tag = 'L';
+        }
+        importDirective = 'directive:import';
+      } else if (d is ExportDirective) {
+        tag = 't';
+        display = d.childEntities
+            .where((element) => '$element' != 'export' && '$element' != ';')
+            .join(' ')
+            .trim();
+      } else if (d is PartDirective) {
+        tag = 'P';
+        display = d.childEntities
+            .where((element) => '$element' != 'part' && '$element' != ';')
+            .join(' ')
+            .trim();
+      } else if (d is PartOfDirective) {
+        tag = 'p';
+        display = d.childEntities
+            .where((element) =>
+                '$element' != 'part' && '$element' != 'of' && '$element' != ';')
+            .join(' ')
+            .trim();
+      } else if (d is LibraryDirective) {
+        tag = 'l';
+        display = d.childEntities
+            .where((element) => '$element' != 'library' && '$element' != ';')
+            .join(' ')
+            .trim();
       }
+
+      // rm quotes
+      display = display.replaceAll(RegExp(r"\'"), '').replaceAll(RegExp(r'\"'), '');
 
       lines.add([
         display,
@@ -191,7 +192,7 @@ class Ctags {
         options['line-numbers'] as bool
             ? 'line:${unit.lineInfo.getLocation(d.offset).lineNumber}'
             : '',
-        'type:$type'
+        importDirective
       ]);
     });
 
