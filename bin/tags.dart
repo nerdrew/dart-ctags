@@ -135,6 +135,8 @@ class Ctags {
       ]);
     }
 
+    final project = options['project'] as String;
+
     // import, export, part, part of, library directives
     await Future.forEach(unit.directives, (Directive d) async {
       String tag, importDirective, display;
@@ -147,12 +149,15 @@ class Ctags {
 
         if (display.contains('dart:')) {
           tag = 'D';
+        } else if (project != null && display.contains('package:$project')) {
+          tag = 'R';
         } else if (display.contains('package:')) {
           tag = 'U';
         } else {
           // local
           tag = 'L';
         }
+
         importDirective = 'directive:import';
       } else if (d is ExportDirective) {
         tag = 't';
@@ -507,8 +512,10 @@ class Ctags {
 
 void main([List<String> args]) {
   final parser = ArgParser();
+
   parser.addOption('output',
       abbr: 'o', help: 'Output file for tags (default: stdout)', valueHelp: 'FILE');
+  parser.addOption('project', abbr: 'p', help: 'add separate category for project import directives');
   parser.addFlag('follow-links',
       help: 'Follow symbolic links (default: false)', negatable: false);
   parser.addFlag('include-hidden',
@@ -520,12 +527,15 @@ void main([List<String> args]) {
   parser.addFlag('skip-sort',
       help: 'Skip sorting the output (default: false)', negatable: false);
   parser.addFlag('help', abbr: 'h', help: 'Show this help', negatable: false);
+
   final options = parser.parse(args);
+
   if (options['help'] as bool) {
     print(
         'Usage:\n\tdart_ctags [OPTIONS] [FILES...]\n\tpub global run dart_ctags:tags [OPTIONS] [FILES...]\n');
     print(parser.usage);
     exit(0);
   }
+
   Ctags(options).generate();
 }
