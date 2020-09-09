@@ -149,9 +149,12 @@ class Ctags {
 
         if (display.contains('dart:')) {
           tag = 'D';
+          display = display.substring('dart:'.length + 1);
         } else if (project != null && display.contains('package:$project')) {
+          display = display.substring('package:$project/'.length + 1);
           tag = 'R';
         } else if (display.contains('package:')) {
+          display = display.substring('package:'.length + 1);
           tag = 'U';
         } else {
           // local
@@ -515,7 +518,8 @@ void main([List<String> args]) {
 
   parser.addOption('output',
       abbr: 'o', help: 'Output file for tags (default: stdout)', valueHelp: 'FILE');
-  parser.addOption('project', abbr: 'p', help: 'add separate category for project import directives');
+  parser.addOption('project',
+      abbr: 'p', help: 'add separate category for project import directives');
   parser.addFlag('follow-links',
       help: 'Follow symbolic links (default: false)', negatable: false);
   parser.addFlag('include-hidden',
