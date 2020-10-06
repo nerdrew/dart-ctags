@@ -157,8 +157,8 @@ class Ctags {
           display = display.substring('package:'.length + 1);
           tag = 'U';
         } else {
-          // local
-          tag = 'L';
+          // relative
+          tag = 'V';
         }
 
         importDirective = 'directive:import';
