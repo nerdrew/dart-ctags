@@ -57,8 +57,7 @@ class Ctags {
       '!_TAG_FILE_SORTED\t1\t/0=unsorted, 1=sorted, 2=foldcase/'
     ];
 
-    Future.wait(dirs.map(addFileSystemEntity))
-        .then((Iterable<Iterable<Iterable<String>>> files) {
+    Future.wait(dirs.map(addFileSystemEntity)).then((Iterable<Iterable<Iterable<String>>> files) {
       files.forEach((Iterable<Iterable<String>> file) {
         file.forEach((Iterable<String> fileLines) => lines.addAll(fileLines));
       });
@@ -89,8 +88,7 @@ class Ctags {
       }).toList());
     } else if (type == FileSystemEntityType.file) {
       return Future.value([await parseFile(File(name))]);
-    } else if (type == FileSystemEntityType.link &&
-        options['follow-links'] as bool) {
+    } else if (type == FileSystemEntityType.link && options['follow-links'] as bool) {
       return addFileSystemEntity(Link(name).targetSync());
     } else {
       return Future.value([]);
@@ -114,8 +112,7 @@ class Ctags {
     ParseStringResult result;
     CompilationUnit unit;
     try {
-      result =
-          an.parseFile(path: file.path, featureSet: FeatureSet.fromEnableFlags([]));
+      result = an.parseFile(path: file.path, featureSet: FeatureSet.fromEnableFlags([]));
       unit = result.unit;
     } catch (e) {
       print('ERROR: unable to generate tags for ${file.path}');
@@ -135,6 +132,8 @@ class Ctags {
       ]);
     }
 
+    final project = options['project'] as String;
+
     // import, export, part, part of, library directives
     await Future.forEach(unit.directives, (Directive d) async {
       String tag, importDirective, display;
@@ -147,12 +146,18 @@ class Ctags {
 
         if (display.contains('dart:')) {
           tag = 'D';
+          display = display.substring('dart:'.length + 1);
+        } else if (project != null && display.contains('package:$project')) {
+          display = display.substring('package:$project/'.length + 1);
+          tag = 'R';
         } else if (display.contains('package:')) {
+          display = display.substring('package:'.length + 1);
           tag = 'U';
         } else {
-          // local
-          tag = 'L';
+          // relative
+          tag = 'V';
         }
+
         importDirective = 'directive:import';
       } else if (d is ExportDirective) {
         tag = 't';
@@ -169,8 +174,7 @@ class Ctags {
       } else if (d is PartOfDirective) {
         tag = 'p';
         display = d.childEntities
-            .where((element) =>
-                '$element' != 'part' && '$element' != 'of' && '$element' != ';')
+            .where((element) => '$element' != 'part' && '$element' != 'of' && '$element' != ';')
             .join(' ')
             .trim();
       } else if (d is LibraryDirective) {
@@ -282,6 +286,56 @@ class Ctags {
                   ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}'
                   : '',
               'mixin:${declaration.name}',
+              'signature:${tag == 'g' ? '' : member.parameters.toString()}',
+              'type:${member.returnType.toString()}'
+            ]);
+          }
+        });
+      } else if (declaration is ExtensionDeclaration) {
+        lines.add([
+          '${declaration.name.name} on ${declaration.extendedType}',
+          path.relative(file.path, from: root),
+          '/${klass.matchAsPrefix(declaration.toSource())[0]}/;"',
+          'X',
+          'access:${declaration.name?.name[0] == '_' ? 'private' : 'public'}',
+          options['line-numbers'] as bool
+              ? 'line:${unit.lineInfo.getLocation(declaration.offset).lineNumber}'
+              : '',
+          'type:extension',
+        ]);
+
+        declaration.members.forEach((member) {
+          if (member is MethodDeclaration) {
+            var tag = 'm';
+            if (member.isStatic) {
+              tag = 'M';
+            }
+            // better if static is least preferred
+            if (member.isOperator) {
+              tag = 'o';
+            }
+            if (member.isGetter) {
+              tag = 'g';
+            }
+            if (member.isSetter) {
+              tag = 's';
+            }
+            if (member.isAbstract) {
+              tag = 'a';
+            }
+
+            var memberSource = member.toSource();
+
+            lines.add([
+              member.name.name,
+              path.relative(file.path, from: root),
+              '/${method.matchAsPrefix(memberSource)[0]}/;"',
+              tag,
+              'access:${member.name.name[0] == '_' ? 'private' : 'public'}',
+              options['line-numbers'] as bool
+                  ? 'line:${unit.lineInfo.getLocation(member.offset).lineNumber}'
+                  : '',
+              'extension:${declaration.name.name} on ${declaration.extendedType}',
               'signature:${tag == 'g' ? '' : member.parameters.toString()}',
               'type:${member.returnType.toString()}'
             ]);
@@ -507,25 +561,27 @@ class Ctags {
 
 void main([List<String> args]) {
   final parser = ArgParser();
+
   parser.addOption('output',
       abbr: 'o', help: 'Output file for tags (default: stdout)', valueHelp: 'FILE');
-  parser.addFlag('follow-links',
-      help: 'Follow symbolic links (default: false)', negatable: false);
+  parser.addOption('project',
+      abbr: 'p', help: 'add separate category for project import directives');
+  parser.addFlag('follow-links', help: 'Follow symbolic links (default: false)', negatable: false);
   parser.addFlag('include-hidden',
       help: 'Include hidden directories (default: false)', negatable: false);
   parser.addFlag('line-numbers',
-      abbr: 'l',
-      help: 'Add line numbers to extension fields (default: false)',
-      negatable: false);
-  parser.addFlag('skip-sort',
-      help: 'Skip sorting the output (default: false)', negatable: false);
+      abbr: 'l', help: 'Add line numbers to extension fields (default: false)', negatable: false);
+  parser.addFlag('skip-sort', help: 'Skip sorting the output (default: false)', negatable: false);
   parser.addFlag('help', abbr: 'h', help: 'Show this help', negatable: false);
+
   final options = parser.parse(args);
+
   if (options['help'] as bool) {
     print(
         'Usage:\n\tdart_ctags [OPTIONS] [FILES...]\n\tpub global run dart_ctags:tags [OPTIONS] [FILES...]\n');
     print(parser.usage);
     exit(0);
   }
+
   Ctags(options).generate();
 }
