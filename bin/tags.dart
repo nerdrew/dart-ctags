@@ -7,6 +7,9 @@ import 'package:analyzer/dart/analysis/features.dart';
 import 'package:analyzer/dart/analysis/utilities.dart' as an;
 import 'package:path/path.dart' as path;
 import 'package:args/args.dart';
+import 'package:pub_semver/pub_semver.dart';
+
+
 
 class Ctags {
   ArgResults options;
@@ -115,7 +118,7 @@ class Ctags {
     CompilationUnit unit;
     try {
       result =
-          an.parseFile(path: file.path, featureSet: FeatureSet.fromEnableFlags([]));
+          an.parseFile(path: file.path, featureSet: FeatureSet.fromEnableFlags2(sdkLanguageVersion: Version(2, 10, 0), flags: ['non-nullable']));
       unit = result.unit;
     } catch (e) {
       print('ERROR: unable to generate tags for ${file.path}');
